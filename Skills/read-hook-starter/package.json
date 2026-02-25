@@ -1,0 +1,6 @@
+{
+  "type": "module",
+  "scripts": {
+    "hook_env_prevent": "node scripts/init-read-hook.js"
+  }
+}

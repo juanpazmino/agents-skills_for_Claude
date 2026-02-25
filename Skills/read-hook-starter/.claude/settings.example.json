@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node $PWD/hooks/read_hook.js"
+          }
+        ]
+      }
+    ]
+  }
+}
