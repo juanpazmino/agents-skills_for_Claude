@@ -5,7 +5,7 @@ A self-contained, drop-in folder that enables a `PreToolUse` guard for Claude Co
 ## Folder Structure
 
 ```
-read-hook-starter/
+your_project/
 ├── .claude/
 │   └── settings.example.json   # Hook registration (contains $PWD placeholder)
 │   └── settings.local.json     # Hook registration (contains the actual path placeholder)
@@ -21,10 +21,10 @@ read-hook-starter/
 ### 1. Copy the folder into your project root
 
 ```bash
-cp -r read-hook-starter/hooks   /path/to/your/project/
-cp -r read-hook-starter/.claude /path/to/your/project/
-cp -r read-hook-starter/scripts /path/to/your/project/
-cp    read-hook-starter/package.json /path/to/your/project/
+cp -r your_project/hooks
+cp -r your_project/.claude 
+cp -r ryour_project/scripts 
+cp    your_project/package.json 
 ```
 
 ### 2. Run the setup script

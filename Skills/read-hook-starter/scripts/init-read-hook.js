@@ -7,7 +7,7 @@ const outputPath   = path.join(".claude", "settings.local.json");
 
 try {
   const templateContent  = fs.readFileSync(templatePath, "utf8");
-  const processedContent = templateContent.replace(/\$PWD/g, pwd);
+  const processedContent = templateContent.replace(/\$PWD/g, pwd.replace(/\\/g, "/")); // Handle Windows backslashes
 
   JSON.parse(processedContent); // validate
 
