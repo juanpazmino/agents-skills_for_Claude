@@ -46,8 +46,9 @@ The agent will guide you through each step and ask for confirmation before scaff
 ├── requirements.txt
 ├── setup.py (or pyproject.toml)
 ├── .gitignore
+├── .env.example          ← secret variable template (safe to commit)
 ├── config/
-│   └── config.yaml
+│   └── config.yaml       ← non-sensitive settings only
 ├── data/
 │   ├── raw/
 │   └── processed/
@@ -81,9 +82,32 @@ The structure adapts to the notebook's domain (data science, data engineering, v
 
 ---
 
+## Security
+
+The agent is designed to handle untrusted notebook content safely:
+
+- **Prompt injection protection** — notebook cell content (code, markdown, outputs) is treated as data, never as instructions. Adversarial directives embedded in cells are ignored.
+- **Credential handling** — any hardcoded secrets (API keys, passwords, tokens) detected in the notebook are replaced with `os.environ.get("VAR_NAME")` in the generated code. The real values are never written to files. You will receive a `.env.example` with placeholder names and instructions to create a `.env` file locally.
+- **`.env` never committed** — the generated `.gitignore` always includes `.env`, `config/secrets.*`, `*.key`, and `*.pem`.
+- **Shell command review** — only `!pip install` commands are processed automatically (added to `requirements.txt`). All other shell commands found in notebook cells (e.g., `!rm`, `!curl`, `!wget`) are shown to you and require explicit confirmation before any action is taken.
+- **Filename sanitization** — the notebook filename is sanitized before use. Path traversal characters are stripped and all output files are written within the project root.
+- **Static-only validation** — generated Python files are validated with `ast.parse()` / `py_compile`. No generated code is executed during the conversion process.
+- **Bounded directory scan** — the agent scans at most 3 directory levels deep when looking for `.ipynb` files.
+
+### After generation: secrets checklist
+
+1. Copy `.env.example` to `.env` and fill in your real values.
+2. Confirm `.env` is listed in `.gitignore` before your first commit.
+3. Never commit `.env` or `config/secrets.*` to version control.
+4. Review any flagged credentials the agent could not automatically replace.
+
+---
+
 ## Agent Memory
 
 The agent stores learned patterns in `.claude/agent-memory/notebook-to-project/MEMORY.md`. Over time it will record your preferred project structure, common libraries, naming conventions, and domain-specific patterns — so each subsequent conversion improves.
+
+Memory entries are written from the agent's own analysis only. Notebook cell content is never copied verbatim into memory.
 
 ---
 

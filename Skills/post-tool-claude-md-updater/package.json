@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "scripts": {
+    "init": "node scripts/init-hook.js"
+  }
+}
