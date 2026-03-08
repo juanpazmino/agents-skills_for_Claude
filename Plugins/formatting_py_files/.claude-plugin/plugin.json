@@ -1,0 +1,10 @@
+{
+  "name": "formatting_py_files",
+  "version": "1.0.0",
+  "description": "Formats Python files with consistent styling and best practices.",
+  "skills": ["./skills/formatting_py_files"],
+  "author": {
+    "name": "Juan Pazmino B",
+    "email": "juan.pazmino.b@gmail.com"
+  }
+}

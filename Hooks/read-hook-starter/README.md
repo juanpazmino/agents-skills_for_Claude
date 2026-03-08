@@ -18,13 +18,13 @@ your_project/
 
 ## Usage
 
-There are two ways to use this hook: per-project (local) or globally across all Claude Code sessions.
+There are three ways to use this hook depending on your scope.
 
 ---
 
-### Option A — Per-project (local)
+### Option A — Local (personal, this project only)
 
-Each project gets its own `hooks/` folder. The hook only applies when Claude Code runs inside that project.
+The hook applies only to this project and is not committed to version control. Each team member who wants the hook must run the setup themselves.
 
 #### 1. Copy the files into your project root
 
@@ -43,22 +43,64 @@ From your project root:
 npm run hook_env_prevent
 ```
 
-This replaces the `$PWD` placeholder in `.claude/settings.local.json` with the real absolute path to your project, so the hook command resolves correctly regardless of how Claude Code invokes it.
-
-You should see:
+This replaces the `$PWD` placeholder in `.claude/settings.local.json` with the real absolute path to your project. The result is written to `settings.local.json`, which is gitignored and never committed.
 
 ```
 ✅ Successfully created .claude/settings.local.json
    Replaced $PWD with: /path/to/your/project
 ```
 
-> Repeat this for every project where you want the hook active. Each project maintains its own copy of the `hooks/` folder.
+---
+
+### Option B — Project (shared with your team)
+
+The hook and its registration are committed to the repo so every team member gets it automatically. Because the hook path must resolve correctly on each machine, use a relative path in `.claude/settings.json` instead of an absolute one.
+
+#### 1. Copy the files into your project root
+
+```bash
+cp -r path/to/read-hook-starter/hooks your_project/
+cp -r path/to/read-hook-starter/.claude your_project/
+cp -r path/to/read-hook-starter/scripts your_project/
+cp    path/to/read-hook-starter/package.json your_project/
+```
+
+#### 2. Register the hook using a relative path
+
+Create or update `.claude/settings.json` in your project root:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node hooks/read_hook.js"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### 3. Commit both files
+
+```bash
+git add .claude/settings.json hooks/read_hook.js
+git commit -m "Add read hook for sensitive file protection"
+```
+
+> Make sure `.claude/settings.local.json` is in your `.gitignore` so personal overrides are never committed.
 
 ---
 
-### Option B — Global (all projects)
+### Option C — Global (personal, all projects)
 
-One shared `hooks/` folder in `~/.claude/hooks/` applies to every Claude Code session regardless of project.
+One shared hook file in `~/.claude/hooks/` applies to every Claude Code session on this machine.
 
 #### 1. Copy the hook file to your global Claude folder
 
@@ -89,7 +131,7 @@ Add the following to `~/.claude/settings.json` (create it if it doesn't exist):
 }
 ```
 
-Replace `/Users/YOUR_USERNAME` with your actual home directory path. No setup script needed — the path is hardcoded once and works everywhere.
+Replace `/Users/YOUR_USERNAME` with your actual home directory path.
 
 ---
 
@@ -101,6 +143,7 @@ The hook registers as a `PreToolUse` guard that fires whenever Claude uses the R
 **For Bash** — checks the full command string for sensitive file references, preventing bypasses via `cat`, `grep`, etc.
 
 **Local setup** uses `$PWD` resolved to an absolute path at setup time via `npm run hook_env_prevent`.
+**Project setup** uses a relative path (`node hooks/read_hook.js`) that works on any machine.
 **Global setup** uses a hardcoded absolute path directly in `~/.claude/settings.json`.
 
 ## Blocked file patterns

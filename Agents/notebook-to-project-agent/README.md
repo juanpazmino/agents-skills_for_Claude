@@ -1,18 +1,40 @@
 # notebook-to-project Agent
 
-A drop-in Claude Code agent that converts Jupyter Notebooks (`.ipynb`) into clean, well-structured Python projects. Drop it into any repo and Claude will handle the full pipeline: notebook detection, `.py` conversion, code analysis, project scaffolding, and test stub generation — all in one guided session.
+A Claude Code agent that converts Jupyter Notebooks (`.ipynb`) into clean, well-structured Python projects. Drop it into any repo and Claude will handle the full pipeline: notebook detection, `.py` conversion, code analysis, project scaffolding, and test stub generation — all in one guided session.
 
 ---
 
 ## Installation
 
-Copy the `.claude/` folder from this package into your project root:
+Download or clone this folder, then copy the agent file to the scope that fits your use case.
+
+### Project (shared with your team)
+
+Copy into your project root and commit it so everyone on the team has access:
 
 ```bash
-cp -r .claude/ /path/to/your/project/
+cp -r .claude/ /your/project/
+cd /your/project && git add .claude/ && git commit -m "Add notebook-to-project agent"
 ```
 
-That's it. The next time you open Claude Code in your project, the agent is available.
+### Local (personal, project-specific)
+
+Copy into your project root but exclude it from version control:
+
+```bash
+cp -r .claude/ /your/project/
+echo ".claude/agents/" >> /your/project/.gitignore
+```
+
+### Global (personal, all projects)
+
+Copy to your home directory to make the agent available in every project on this machine:
+
+```bash
+cp .claude/agents/notebook-to-project.md ~/.claude/agents/
+```
+
+The next time you open Claude Code in your project, the agent is available.
 
 ---
 
@@ -32,7 +54,7 @@ The agent will guide you through each step and ask for confirmation before scaff
 
 ## Requirements
 
-- [Claude Code](https://claude.ai/claude-code) installed and authenticated
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
 - Python 3.8+ in the target project environment
 - The `.ipynb` notebook file present in (or provided to) the project
 
@@ -105,12 +127,7 @@ The agent is designed to handle untrusted notebook content safely:
 
 ## Agent Memory
 
-The agent stores learned patterns in `.claude/agent-memory/notebook-to-project/MEMORY.md`. Over time it will record your preferred project structure, common libraries, naming conventions, and domain-specific patterns — so each subsequent conversion improves.
+The agent stores learned patterns in `.claude/agent-memory/notebook-to-project/MEMORY.md`. Over time it records your preferred project structure, common libraries, naming conventions, and domain-specific patterns — so each subsequent conversion improves.
 
 Memory entries are written from the agent's own analysis only. Notebook cell content is never copied verbatim into memory.
 
----
-
-## Source
-
-This agent is part of the [Agents Creation](https://github.com/placeholder/agents-creation) repository, a workspace for building and sharing reusable Claude Code agents.

@@ -13,17 +13,37 @@ When invoked, the agent:
 
 ## Installation
 
-Copy the `.claude/` folder into your project root (or any parent directory Claude Code will search):
+Download or clone this folder, then copy the agent file to the scope that fits your use case.
+
+### Project (shared with your team)
+
+Copy into your project root and commit it so everyone on the team has access:
 
 ```bash
 cp -r .claude/ /your/project/
+cd /your/project && git add .claude/ && git commit -m "Add judge-llm agent"
 ```
 
-Or copy it to `~/.claude/` to make it available globally across all projects.
+### Local (personal, project-specific)
+
+Copy into your project root but exclude it from version control:
+
+```bash
+cp -r .claude/ /your/project/
+echo ".claude/agents/" >> /your/project/.gitignore
+```
+
+### Global (personal, all projects)
+
+Copy to your home directory to make the agent available in every project on this machine:
+
+```bash
+cp .claude/agents/judge-llm.md ~/.claude/agents/
+```
 
 ## How to Invoke
 
-In Claude Code, just describe what you want:
+Open Claude Code in your project and describe what you want:
 
 ```
 create a judge LLM
@@ -60,13 +80,13 @@ Only the dependencies needed for your chosen provider:
 
 ## API Key Handling
 
-> **Never share your actual API key with the agent.** When asked, provide only the **environment variable name** (e.g., `ANTHROPIC_API_KEY`), not the key value itself. The agent will never read your `.env` file.
+> **Never share your actual API key with the agent.** When asked, provide only the **environment variable name** (e.g., `ANTHROPIC_API_KEY`), not the key value itself.
 
 The agent handles key loading in this order:
-1. **`load_dotenv` detected** — if your project already uses `python-dotenv`, the generated code will call `load_dotenv()` automatically so your `.env` variables are available at runtime.
-2. **No `load_dotenv`** — the agent asks for the variable name and generates `os.getenv("YOUR_VARIABLE_NAME")`. You are responsible for setting that variable in your shell before running the script.
+1. **`load_dotenv` detected** — if your project already uses `python-dotenv`, the generated code will call `load_dotenv()` automatically.
+2. **No `load_dotenv`** — the agent asks for the variable name and generates `os.getenv("YOUR_VARIABLE_NAME")`. You are responsible for setting that variable in your shell before running.
 
-In both cases, only the **variable name** is ever referenced in the generated code. The actual key value is never stored, logged, or passed through the agent.
+In both cases, only the **variable name** is ever referenced in the generated code.
 
 ### Setting env vars safely
 
@@ -74,7 +94,7 @@ Add the variable to your shell profile (`~/.zshrc`, `~/.bashrc`) or a secrets ma
 
 ### Custom / remote endpoints
 
-If you use a custom `base_url` (Ollama, Azure, LM Studio), ensure it uses `https://` for any non-localhost address. Sending an API key over plain `http://` to a remote host exposes it in transit.
+If you use a custom `base_url` (Ollama, Azure, LM Studio), ensure it uses `https://` for any non-localhost address.
 
 ### Data privacy
 
@@ -93,7 +113,7 @@ Your CSV rows, prompts, and dictionary values are sent **verbatim** to the chose
 
 ## Input Format Support
 
-### DataFrame / CSV (primary)
+### DataFrame / CSV
 Two CSVs joined on an ID column. Best for batch evaluation of many rows.
 
 ```python
@@ -162,16 +182,3 @@ The `judge_result` column in the output CSV contains structured JSON scores:
   "explanation": "Response is mostly accurate and very helpful, though clarity could be improved."
 }
 ```
-
-## Verification
-
-> **TODO**: Manually test the agent by invoking it in a project and verifying:
-> - All four providers generate valid, runnable code
-> - DataFrame mode handles inner join edge cases (mismatched IDs)
-> - Async mode works without deadlocks
-> - `judge_response` gracefully handles non-JSON LLM output
-> - `requirements.txt` only includes provider-specific deps
-> - Env var validation raises `RuntimeError` when variable is unset
-> - Agent never asks for a real API key — only the variable name
-> - HTTP warning appears when a non-localhost `base_url` is provided
-> - Data privacy reminder appears in the post-generation summary
