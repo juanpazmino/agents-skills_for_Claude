@@ -7,4 +7,6 @@ coverage
 *.log
 .idea
 .vscode
-judge-llm-agent/plan.md 
+Agents/judge-llm-agent/plan.md
+.claude
+.planning

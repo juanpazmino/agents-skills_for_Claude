@@ -1,71 +1,80 @@
-# Judge LLM Agent
+# judge-llm
 
-A Claude Code subagent that generates a production-ready **Judge LLM** — a Python script that uses an LLM to evaluate and score outputs from other LLMs.
+A Claude Code subagent that generates a production-ready, importable `JudgeLLM` Python module for evaluating and scoring outputs from other LLMs.
 
-## What It Does
-
-When invoked, the agent:
-1. Asks which provider and model to use as the judge (Claude, OpenAI, Gemini, or any OpenAI-compatible API)
-2. Asks what input format your data is in (DataFrame/CSV, prompt+response, or dictionary)
-3. Collects schema details (column names, batch size, concurrency)
-4. Asks for evaluation criteria (default: accuracy, helpfulness, clarity, safety)
-5. Generates `judge_llm.py` and `requirements.txt` in your working directory
+---
 
 ## Installation
 
-Download or clone this folder, then copy the agent file to the scope that fits your use case.
+Download or clone this folder, then register it in Claude Code under your preferred scope.
 
-### Project (shared with your team)
-
-Copy into your project root and commit it so everyone on the team has access:
+### Project (shared with team)
 
 ```bash
-cp -r .claude/ /your/project/
-cd /your/project && git add .claude/ && git commit -m "Add judge-llm agent"
+mkdir -p .claude/agents
+cp -r judge-llm-agent/.claude/agents/judge-llm.md .claude/agents/
 ```
 
-### Local (personal, project-specific)
+Commit `.claude/agents/judge-llm.md` to share it with the team.
 
-Copy into your project root but exclude it from version control:
+### Local (you, this project only)
 
 ```bash
-cp -r .claude/ /your/project/
-echo ".claude/agents/" >> /your/project/.gitignore
+mkdir -p .claude/agents
+cp -r judge-llm-agent/.claude/agents/judge-llm.md .claude/agents/
 ```
 
-### Global (personal, all projects)
+Add to `.gitignore`:
+```
+.claude/agents/
+```
 
-Copy to your home directory to make the agent available in every project on this machine:
+### Global (you, all projects)
 
 ```bash
-cp .claude/agents/judge-llm.md ~/.claude/agents/
+cp judge-llm-agent/.claude/agents/judge-llm.md ~/.claude/agents/
 ```
 
-## How to Invoke
+---
 
-Open Claude Code in your project and describe what you want:
+## How to invoke
+
+Say any of the following in a Claude Code session:
+
+- "create a judge LLM"
+- "evaluate my LLM responses"
+- "build a judge to score model outputs"
+- "I need an LLM evaluator"
+
+Or invoke explicitly:
+```
+@judge-llm create a judge for my CSV outputs
+```
+
+The agent walks you through setup **one step at a time** — it asks each question and waits for your answer before continuing.
+
+---
+
+## What the agent generates
 
 ```
-create a judge LLM
-evaluate my LLM responses
-build a judge to score model outputs
-I need an LLM evaluator
+your-project/
+├── judge_llm.py       # importable JudgeLLM class module (no __main__ block)
+├── requirements.txt   # provider-specific dependencies only
+└── .env.example       # placeholder showing the required env var name
 ```
-
-Or explicitly: `@judge-llm create a judge for my CSV outputs`
-
-## What Gets Generated
 
 ### `judge_llm.py`
 
-A complete Python script containing:
+An importable module containing the `JudgeLLM` class:
 
-- **Client setup** — provider-specific SDK initialization; validates the env var is set and raises `RuntimeError` immediately if missing
-- **`JUDGE_SYSTEM_PROMPT`** — customized for your chosen evaluation criteria
-- **`judge_response(input_data)`** — accepts `dict`, `str`, or any value; returns parsed JSON dict or raw string on JSON parse failure
-- **`judge_dataframe(outputs_df, reference_df, ...)`** — generic N-column batch judge; works with any CSV schema; returns merged DataFrame with `judge_result` column
-- **`judge_dataframe_async(...)`** — optional async version with bounded concurrency (if requested)
-- **`if __name__ == "__main__"`** — runnable demo matching your chosen input format
+| Method | Description |
+|---|---|
+| `JudgeLLM()` | Initializes the provider client; raises `RuntimeError` immediately if the API key env var is not set |
+| `.judge(input_data)` | Accepts `dict`, `str`, or any value; returns parsed JSON dict or raw string on JSON parse failure |
+| `.judge_dataframe(outputs_df, reference_df, ...)` | Generic N-column batch judge; returns the merged DataFrame with a `judge_result` column |
+| `.judge_async(input_data, semaphore)` | Async version of `.judge()` with concurrency control (generated only if requested) |
+| `.judge_dataframe_async(...)` | Async batch judge with bounded concurrency (generated only if requested) |
 
 ### `requirements.txt`
 
@@ -78,49 +87,41 @@ Only the dependencies needed for your chosen provider:
 | Gemini | `google-generativeai>=0.8.0` |
 | All modes | `pandas>=2.0.0`, `tqdm>=4.0.0` |
 
-## API Key Handling
+### `.env.example`
 
-> **Never share your actual API key with the agent.** When asked, provide only the **environment variable name** (e.g., `ANTHROPIC_API_KEY`), not the key value itself.
+```
+# Copy this file to .env and fill in your actual key
+ANTHROPIC_API_KEY=your-api-key-here
+```
 
-The agent handles key loading in this order:
-1. **`load_dotenv` detected** — if your project already uses `python-dotenv`, the generated code will call `load_dotenv()` automatically.
-2. **No `load_dotenv`** — the agent asks for the variable name and generates `os.getenv("YOUR_VARIABLE_NAME")`. You are responsible for setting that variable in your shell before running.
+The variable name matches whatever you provide during setup. Copy to `.env`, fill in your key, and add `.env` to `.gitignore`.
 
-In both cases, only the **variable name** is ever referenced in the generated code.
+---
 
-### Setting env vars safely
+## Workflow
 
-Add the variable to your shell profile (`~/.zshrc`, `~/.bashrc`) or a secrets manager. **Do not run `export MY_KEY=actual_value` directly in the terminal** — it gets saved to shell history in plaintext.
+The agent completes five steps in sequence, waiting for your answer at each before moving on:
 
-### Custom / remote endpoints
+1. **Provider & model** — Claude, OpenAI, Gemini, or any OpenAI-compatible API (Ollama, Azure, LM Studio)
+2. **Input format** — DataFrame/CSV, prompt+response string, or dictionary
+3. **DataFrame details** *(if DataFrame chosen)* — join column, output columns, reference columns, batch size, async concurrency
+4. **Evaluation criteria** — defaults: accuracy, helpfulness, clarity, safety; fully customizable
+5. **Generate files** — writes `judge_llm.py`, `requirements.txt`, and `.env.example`
 
-If you use a custom `base_url` (Ollama, Azure, LM Studio), ensure it uses `https://` for any non-localhost address.
+---
 
-### Data privacy
+## Usage
 
-Your CSV rows, prompts, and dictionary values are sent **verbatim** to the chosen provider's API. If your data contains PII or confidential information, review your provider's data retention policy before running.
+After generation, import and use the class directly — no script execution required.
 
-## Supported Providers
-
-| Provider | SDK | API Key Env Var |
-|---|---|---|
-| Claude (Anthropic) | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Gemini (Google) | `google-generativeai` | `GOOGLE_API_KEY` |
-| Ollama (local) | `openai` (custom base_url) | any string |
-| Azure OpenAI | `openai` (AzureOpenAI) | `AZURE_OPENAI_API_KEY` |
-| LM Studio / any OpenAI-compatible | `openai` (custom base_url) | varies |
-
-## Input Format Support
-
-### DataFrame / CSV
-Two CSVs joined on an ID column. Best for batch evaluation of many rows.
-
+**DataFrame / CSV:**
 ```python
-outputs = pd.read_csv("outputs.csv")
-reference = pd.read_csv("reference.csv")
-result = judge_dataframe(
-    outputs, reference,
+from judge_llm import JudgeLLM
+import pandas as pd
+
+judge = JudgeLLM()
+result = judge.judge_dataframe(
+    outputs_df, reference_df,
     join_col="id",
     output_cols=["response", "summary"],
     reference_cols=["ground_truth"],
@@ -128,57 +129,39 @@ result = judge_dataframe(
 result.to_csv("judged_outputs.csv", index=False)
 ```
 
-### Prompt + Response
-Evaluate a single string response:
-
+**Prompt+Response or Dictionary:**
 ```python
-result = judge_response("The capital of France is Berlin.")
-print(result)
-# {"scores": {"accuracy": 1, ...}, "explanation": "..."}
-```
+from judge_llm import JudgeLLM
 
-### Dictionary
-Evaluate structured key-value data:
-
-```python
-result = judge_response({
+judge = JudgeLLM()
+result = judge.judge({
     "question": "What is the capital of France?",
     "response": "Berlin",
     "ground_truth": "Paris",
 })
+print(result)
+# {"scores": {"accuracy": 1, ...}, "overall": 2, "explanation": "..."}
 ```
 
-## Example Output
+---
 
-After generation, the agent shows:
+## Supported providers
 
-```
-Files created:
-  judge_llm.py
-  requirements.txt
+| Provider | SDK | Default env var |
+|---|---|---|
+| Claude (Anthropic) | `anthropic` | `ANTHROPIC_API_KEY` |
+| OpenAI | `openai` | `OPENAI_API_KEY` |
+| Gemini (Google) | `google-generativeai` | `GOOGLE_API_KEY` |
+| Ollama (local) | `openai` (custom base_url) | any string |
+| Azure OpenAI | `openai` (AzureOpenAI) | `AZURE_OPENAI_API_KEY` |
+| LM Studio / OpenAI-compatible | `openai` (custom base_url) | varies |
 
-Setup:
-  # Ensure your API key variable is set in your environment (e.g., ANTHROPIC_API_KEY)
-  pip install -r requirements.txt
+---
 
-Run demo:
-  python judge_llm.py
+## Security
 
-Use in your code:
-  from judge_llm import judge_dataframe, judge_response
-```
-
-The `judge_result` column in the output CSV contains structured JSON scores:
-
-```json
-{
-  "scores": {
-    "accuracy": 8,
-    "helpfulness": 9,
-    "clarity": 7,
-    "safety": 10
-  },
-  "overall": 8,
-  "explanation": "Response is mostly accurate and very helpful, though clarity could be improved."
-}
-```
+- Never ask for your actual API key — only the environment variable name
+- Generated code uses `os.getenv("VAR_NAME")` and raises `RuntimeError` immediately if the variable is unset
+- `.env.example` uses placeholder values only; your real `.env` should be gitignored
+- Custom remote endpoints are warned to use `https://` — plain `http://` to a non-localhost host exposes the key in transit
+- CSV rows, prompts, and dictionary values are sent verbatim to the provider's API; review your provider's data retention policy before using with PII or confidential data
