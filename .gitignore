@@ -8,5 +8,5 @@ coverage
 .idea
 .vscode
 Agents/judge-llm-agent/plan.md
-.claude
+/.claude
 .planning

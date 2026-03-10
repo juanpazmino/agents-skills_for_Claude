@@ -60,7 +60,8 @@ Based on their Step 1 answer, ask which specific model they want to use as the j
 Ask the user what format their data will be in:
 
 1. **Single evaluation** — a plain string, a `dict` of named fields, or a `list` of values, evaluated one at a time
-2. **DataFrame / CSV batch** — two DataFrames (outputs + reference) joined on an ID column, best for bulk evaluation
+2. **DataFrame / CSV batch** — two DataFrames (outputs + reference) joined on an ID column, best for bulk evaluation where context and responses are already in one place
+3. **Input + Response CSVs** — two separate files: one with the original prompts (`id`, `text`), and one with the LLM responses (`id`, `col1`, `col2`, ...); the judge joins them on `id` and scores each response column independently against the original input text
 
 ### Step 4: DataFrame Details (if DataFrame chosen)
 
@@ -72,6 +73,23 @@ Ask for:
 - **Reference columns** — which columns from the reference df to use as context (e.g., `ground_truth, source_text`)
 - **Batch size** (default: 10)
 - **Async concurrency** — whether to enable asyncio for faster processing (yes/no)
+
+### Step 4: Input + Response CSV Details (if Option C chosen)
+
+**Ask the following, then wait for the user's reply before continuing to Step 5.**
+
+Ask for:
+- **ID column name** — the column used to join both files (must exist in both CSVs, e.g., `id`)
+- **Input text column** — the column in the input CSV containing the original prompt sent to the LLM (e.g., `text`, `prompt`, `question`)
+- **Response columns** — comma-separated list of columns in the response CSV to evaluate; each is judged separately per row (e.g., `model_a, model_b, gpt4_answer`)
+- **Number of batches** — how many batches to split the data into for processing (e.g., `10` splits 1000 rows into ~100 rows per batch); default: 10. The generated method computes `batch_size = ceil(total_rows / num_batches)`.
+- **Global evaluation type** — after scoring each column independently, the judge also produces a `global_judge_result` per row. Ask the user which type:
+  1. **Average** — compute the mean of per-column `overall` scores (no extra API call)
+  2. **LLM comparison** — send all response columns to the LLM together and ask it to compare and rank them (1 extra API call per row)
+  3. **LLM synthesis** — send all responses and ask the LLM for an overall verdict on the input (1 extra API call per row)
+- **Async concurrency** — whether to enable asyncio for faster processing (yes/no)
+
+**Warn the user**: response column names must not duplicate the input text column name, or the merge will fail.
 
 ### Step 5: Evaluation Criteria
 
@@ -129,6 +147,7 @@ The client is always passed in — never created inside this module. Include asy
 
 ```python
 import json
+import math
 import pandas as pd
 from tqdm import tqdm
 # <<< INSERT PROVIDER-SPECIFIC IMPORTS HERE (e.g. from anthropic import Anthropic) — for type hints only if desired, otherwise omit >>>
@@ -199,6 +218,84 @@ class JudgeLLM:
         merged["judge_result"] = results  # same length guaranteed — no mismatch risk
         return merged
 
+    def judge_input_response(
+        self,
+        input_df: pd.DataFrame,
+        response_df: pd.DataFrame,
+        id_col: str,
+        input_text_col: str,
+        response_cols: list,
+        num_batches: int = 10,
+        global_eval: str = "average",  # "average" | "comparison" | "synthesis"
+    ) -> pd.DataFrame:
+        """Join input_df and response_df on id_col, judge each response column
+        independently, and produce a global evaluation per row.
+
+        The data is split into num_batches chunks (batch_size = ceil(total / num_batches)).
+        Each response column gets its own '{col}_judge_result' column.
+        A 'global_judge_result' column is also appended using the chosen strategy:
+          - 'average'    : mean of per-column 'overall' scores (no extra API call)
+          - 'comparison' : LLM compares all response columns and ranks them (1 extra call/row)
+          - 'synthesis'  : LLM gives an overall verdict on all responses (1 extra call/row)
+
+        Args:
+            input_df:       DataFrame with at least [id_col, input_text_col].
+            response_df:    DataFrame with at least [id_col] + response_cols.
+            id_col:         Column used to join both DataFrames.
+            input_text_col: Column in input_df with the original prompt/input text.
+            response_cols:  List of columns in response_df to evaluate.
+            num_batches:    Number of batches to split the data into.
+            global_eval:    Global evaluation strategy ('average', 'comparison', 'synthesis').
+        """
+        input_keep = [id_col, input_text_col]
+        response_keep = [id_col] + [c for c in response_cols if c != id_col]
+        merged = input_df[input_keep].merge(
+            response_df[response_keep], on=id_col
+        ).reset_index(drop=True)
+
+        batch_size = max(1, math.ceil(len(merged) / num_batches)) if num_batches > 0 else max(1, len(merged))
+        # Guard: batch_size must be >= 1 to avoid range(0, n, 0) ValueError on empty DataFrames
+
+        # --- Per-column evaluation ---
+        for col in response_cols:
+            col_results = []
+            for i in tqdm(range(0, len(merged), batch_size), desc=f"Judging '{col}' ({num_batches} batches)"):
+                batch = merged.iloc[i : i + batch_size]
+                for _, row in batch.iterrows():
+                    row_data = {input_text_col: row[input_text_col], col: row[col]}
+                    col_results.append(self.judge(row_data))
+            merged[f"{col}_judge_result"] = col_results
+
+        # --- Global evaluation ---
+        global_results = []
+        if global_eval == "average":
+            # Compute mean of 'overall' scores from each per-column result (no extra API call)
+            for _, row in merged.iterrows():
+                scores = []
+                for col in response_cols:
+                    result = row[f"{col}_judge_result"]
+                    if isinstance(result, dict) and "overall" in result:
+                        scores.append(result["overall"])
+                global_results.append(
+                    {"overall_average": round(sum(scores) / len(scores), 2)} if scores else None
+                )
+        else:
+            # "comparison" or "synthesis": one LLM call per row with all response columns
+            for i in tqdm(range(0, len(merged), batch_size), desc=f"Global '{global_eval}' ({num_batches} batches)"):
+                batch = merged.iloc[i : i + batch_size]
+                for _, row in batch.iterrows():
+                    row_data = {input_text_col: row[input_text_col]}
+                    row_data.update({col: row[col] for col in response_cols})
+                    # Provide a clear instruction key so the judge LLM understands the task
+                    if global_eval == "comparison":
+                        row_data["evaluation_instruction"] = "Compare and rank all response columns above."
+                    else:
+                        row_data["evaluation_instruction"] = "Synthesize an overall verdict across all response columns above."
+                    global_results.append(self.judge(row_data))
+
+        merged["global_judge_result"] = global_results
+        return merged
+
     # --- Async methods (include only if user requested async concurrency) ---
 
     async def judge_async(self, input_data, semaphore) -> dict | str:
@@ -229,6 +326,73 @@ class JudgeLLM:
             tasks.append(self.judge_async(row_data, semaphore))
         results = await asyncio.gather(*tasks)
         merged["judge_result"] = list(results)
+        return merged
+
+    async def judge_input_response_async(
+        self,
+        input_df: pd.DataFrame,
+        response_df: pd.DataFrame,
+        id_col: str,
+        input_text_col: str,
+        response_cols: list,
+        num_batches: int = 10,
+        global_eval: str = "average",  # "average" | "comparison" | "synthesis"
+        max_concurrent: int = 5,
+    ) -> pd.DataFrame:
+        """Async version of judge_input_response() with bounded concurrency.
+
+        Per-column and global evaluations run with bounded concurrency via semaphore.
+        Columns are processed sequentially to keep rate-limit pressure predictable.
+        """
+        import asyncio
+        # math is imported at module top level
+
+        input_keep = [id_col, input_text_col]
+        response_keep = [id_col] + [c for c in response_cols if c != id_col]
+        merged = input_df[input_keep].merge(
+            response_df[response_keep], on=id_col
+        ).reset_index(drop=True)
+
+        semaphore = asyncio.Semaphore(max_concurrent)
+        batch_size = max(1, math.ceil(len(merged) / num_batches)) if num_batches > 0 else max(1, len(merged))
+
+        # --- Per-column evaluation (async) ---
+        for col in response_cols:
+            tasks = []
+            for i in range(0, len(merged), batch_size):
+                batch = merged.iloc[i : i + batch_size]
+                for _, row in batch.iterrows():
+                    row_data = {input_text_col: row[input_text_col], col: row[col]}
+                    tasks.append(self.judge_async(row_data, semaphore))
+            results = await asyncio.gather(*tasks)
+            merged[f"{col}_judge_result"] = list(results)
+
+        # --- Global evaluation (async) ---
+        if global_eval == "average":
+            global_results = []
+            for _, row in merged.iterrows():
+                scores = []
+                for col in response_cols:
+                    result = row[f"{col}_judge_result"]
+                    if isinstance(result, dict) and "overall" in result:
+                        scores.append(result["overall"])
+                global_results.append(
+                    {"overall_average": round(sum(scores) / len(scores), 2)} if scores else None
+                )
+            merged["global_judge_result"] = global_results
+        else:
+            global_tasks = []
+            for _, row in merged.iterrows():
+                row_data = {input_text_col: row[input_text_col]}
+                row_data.update({col: row[col] for col in response_cols})
+                if global_eval == "comparison":
+                    row_data["evaluation_instruction"] = "Compare and rank all response columns above."
+                else:
+                    row_data["evaluation_instruction"] = "Synthesize an overall verdict across all response columns above."
+                global_tasks.append(self.judge_async(row_data, semaphore))
+            global_results = await asyncio.gather(*global_tasks)
+            merged["global_judge_result"] = list(global_results)
+
         return merged
 ```
 
@@ -398,6 +562,31 @@ result = judge.judge_dataframe(
     reference_cols=["ground_truth"],
 )
 result.to_csv("judged_outputs.csv", index=False)
+```
+
+**Any provider + Input/Response CSVs:**
+```python
+import pandas as pd
+# ... create client as above ...
+from judge_llm import JudgeLLM
+
+judge = JudgeLLM(client=client, model="<chosen-model>")
+
+input_df = pd.read_csv("inputs.csv")       # columns: id, text
+response_df = pd.read_csv("responses.csv") # columns: id, model_a, model_b
+
+result = judge.judge_input_response(
+    input_df=input_df,
+    response_df=response_df,
+    id_col="id",
+    input_text_col="text",
+    response_cols=["model_a", "model_b"],
+    num_batches=10,        # splits data into 10 chunks for processing
+    global_eval="average", # "average" | "comparison" | "synthesis"
+)
+result.to_csv("judged_responses.csv", index=False)
+# Output columns: id, text, model_a, model_b,
+#                 model_a_judge_result, model_b_judge_result, global_judge_result
 ```
 
 Show only the snippet(s) relevant to the user's chosen provider and input format.

@@ -43,6 +43,20 @@ When converting the `.ipynb` to `.py`:
 
 ---
 
+## Code Fidelity
+
+**Respect the original code.** Unless the user explicitly asks for refactoring, new features, or renaming, preserve the notebook's code as written:
+
+- **Keep all function names exactly as they appear** in the notebook. Do not rename to snake_case, camelCase, or any other convention unless asked.
+- **Keep variable names unchanged.** Do not "improve" naming during conversion.
+- **Do not add new features, helpers, or abstractions** that were not present in the original notebook.
+- **Do not refactor logic.** If a cell has repetitive code or inefficient patterns, convert it as-is. Mention the pattern to the user if it seems important, but do not rewrite it.
+- **Do not add error handling, logging, or validation** beyond what exists in the original notebook unless requested.
+- The only permitted changes during conversion are: removing notebook-specific artifacts (magic commands, `display()` calls), reorganizing imports to the top of each file, wrapping code in functions/classes when splitting into modules (preserving original logic inside), and credential replacement as required by security policy.
+- When splitting code into modules, map each block to the most appropriate module — but the code inside remains identical to what was in the notebook.
+
+---
+
 ## Step 3: Code Analysis
 
 Before splitting, analyze the converted `.py` file to identify:

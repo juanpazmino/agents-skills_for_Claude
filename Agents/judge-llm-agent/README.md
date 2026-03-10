@@ -75,6 +75,8 @@ An importable module containing the `JudgeLLM` class:
 | `.judge_dataframe(outputs_df, reference_df, ...)` | Generic N-column batch judge; returns the merged DataFrame with a `judge_result` column |
 | `.judge_async(input_data, semaphore)` | Async version of `.judge()` with concurrency control (generated only if requested) |
 | `.judge_dataframe_async(...)` | Async batch judge with bounded concurrency (generated only if requested) |
+| `.judge_input_response(input_df, response_df, ...)` | Join input CSV (`id`, `text`) with response CSV (`id`, `col1`, ...) on ID, score each response column independently against the original input text |
+| `.judge_input_response_async(...)` | Async version of `judge_input_response()` with bounded concurrency via semaphore (generated only if requested) |
 
 ### `requirements.txt`
 
@@ -103,10 +105,11 @@ The variable name matches whatever you provide during setup. Copy to `.env`, fil
 The agent completes five steps in sequence, waiting for your answer at each before moving on:
 
 1. **Provider & model** — Claude, OpenAI, Gemini, or any OpenAI-compatible API (Ollama, Azure, LM Studio)
-2. **Input format** — DataFrame/CSV, prompt+response string, or dictionary
+2. **Input format** — single evaluation, DataFrame/CSV batch, or Input + Response CSVs
 3. **DataFrame details** *(if DataFrame chosen)* — join column, output columns, reference columns, batch size, async concurrency
-4. **Evaluation criteria** — defaults: accuracy, helpfulness, clarity, safety; fully customizable
-5. **Generate files** — writes `judge_llm.py`, `requirements.txt`, and `.env.example`
+4. **Input + Response CSV details** *(if CSV mode chosen)* — ID column, input text column, response columns, num_batches, global eval type, async concurrency
+5. **Evaluation criteria** — defaults: accuracy, helpfulness, clarity, safety; fully customizable
+6. **Generate files** — writes `judge_llm.py`, `requirements.txt`, and `.env.example`
 
 ---
 
@@ -127,6 +130,30 @@ result = judge.judge_dataframe(
     reference_cols=["ground_truth"],
 )
 result.to_csv("judged_outputs.csv", index=False)
+```
+
+**Input + Response CSVs:**
+```python
+from judge_llm import JudgeLLM
+import pandas as pd
+
+judge = JudgeLLM(client=client, model="<chosen-model>")
+
+input_df = pd.read_csv("inputs.csv")       # columns: id, text
+response_df = pd.read_csv("responses.csv") # columns: id, model_a, model_b
+
+result = judge.judge_input_response(
+    input_df=input_df,
+    response_df=response_df,
+    id_col="id",
+    input_text_col="text",
+    response_cols=["model_a", "model_b"],
+    num_batches=10,        # splits data into 10 chunks for processing
+    global_eval="average", # "average" | "comparison" | "synthesis"
+)
+result.to_csv("judged_responses.csv", index=False)
+# Output columns: id, text, model_a, model_b,
+#                 model_a_judge_result, model_b_judge_result, global_judge_result
 ```
 
 **Prompt+Response or Dictionary:**

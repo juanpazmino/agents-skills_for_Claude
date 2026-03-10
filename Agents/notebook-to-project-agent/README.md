@@ -104,6 +104,25 @@ The structure adapts to the notebook's domain (data science, data engineering, v
 
 ---
 
+## Code Fidelity
+
+The agent preserves your original notebook code exactly as written. Unless you explicitly ask for refactoring, renaming, or new features, the conversion will not alter function names, variable names, or logic structure.
+
+**What stays the same:**
+- All function and variable names (no auto-rename to snake_case or camelCase)
+- Logic and control flow (repetitive or inefficient patterns are converted as-is)
+- No added error handling, logging, or validation beyond what is in the notebook
+
+**What the agent is permitted to change:**
+- Removing notebook-specific artifacts (magic commands, `display()` calls)
+- Moving imports to the top of each file
+- Wrapping code in functions/classes when splitting into modules (original logic is preserved inside)
+- Replacing hardcoded credentials per the security policy below
+
+If the agent notices a pattern worth flagging (e.g., repeated logic that could be a helper), it will mention it — but will not rewrite it unless you ask.
+
+---
+
 ## Security
 
 The agent is designed to handle untrusted notebook content safely:
