@@ -142,9 +142,9 @@ The hook registers as a `PreToolUse` guard that fires whenever Claude uses the R
 **For Read and Grep** — checks the `file_path` argument against sensitive patterns.
 **For Bash** — checks the full command string for sensitive file references, preventing bypasses via `cat`, `grep`, etc.
 
-**Local setup** uses `$PWD` resolved to an absolute path at setup time via `npm run hook_env_prevent`.
+**Local setup** uses `$PWD` resolved to an absolute path at setup time via `npm run hook_env_prevent`. The path is wrapped in double quotes so it works correctly on Windows when the project lives in a directory with spaces.
 **Project setup** uses a relative path (`node hooks/read_hook.js`) that works on any machine.
-**Global setup** uses a hardcoded absolute path directly in `~/.claude/settings.json`.
+**Global setup** uses a hardcoded absolute path directly in `~/.claude/settings.json`. On Windows, wrap the path in double quotes if it contains spaces (e.g. `"node \"C:/Users/My Name/.claude/hooks/read_hook.js\""`).
 
 ## Blocked file patterns
 

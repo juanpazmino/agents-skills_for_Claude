@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node $PWD/hooks/read_hook.js"
+            "command": "node \"$PWD/hooks/read_hook.js\""
           }
         ]
       }
