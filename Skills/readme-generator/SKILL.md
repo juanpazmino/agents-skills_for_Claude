@@ -7,6 +7,7 @@ description: |
   Use when the user finishes creating a Plugin, Hook, Agent, or Skill and needs a README,
   or says things like "generate the readme", "write the README for this hook/plugin/agent",
   "document this component", "create the readme".
+  DO NOT use to create or improve skills — use skill-creator for that.
 ---
 
 ## Steps
