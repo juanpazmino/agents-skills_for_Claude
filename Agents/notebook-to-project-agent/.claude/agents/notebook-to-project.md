@@ -34,6 +34,7 @@ You are an expert Python software architect and data engineering specialist with
 When converting the `.ipynb` to `.py`:
 
 - Extract only **code cells**; convert **markdown cells** into properly formatted Python docstrings or `#` comments placed logically above the relevant code block.
+- Discard cell `outputs[]` entirely — these are execution artifacts (rendered DataFrames, plots, tracebacks, base64-encoded images) and must never appear in the converted `.py` file.
 - Remove or convert magic commands (e.g., `%matplotlib inline` → `import matplotlib; matplotlib.use('Agg')` with a comment, or remove if not applicable).
 - Remove IPython display calls that don't translate to scripts (e.g., `display(df)` → `print(df)` or leave with a comment).
 - Preserve cell execution order.
@@ -76,7 +77,13 @@ Use this analysis to determine how to split the project.
 
 ## Step 4: Project Scaffolding
 
-Create a full Python project structure tailored to the notebook's domain. A typical structure looks like:
+**Before creating any files**, check whether the target directory already contains conflicting paths: `src/`, `tests/`, `requirements.txt`, `setup.py`, `pyproject.toml`, `main.py`, `.env.example`, `.gitignore`, or a folder matching the proposed `<project_name>/`. If any are found:
+
+- List every path that would be overwritten.
+- Ask the user to choose: **(a)** overwrite in place, **(b)** write into a `<project_name>_v2/` subfolder (timestamp-suffixed if `_v2/` also exists), or **(c)** abort.
+- If the user does not respond clearly, default to **(b)** — non-destructive is the safe path.
+
+Once collisions are resolved, create a full Python project structure tailored to the notebook's domain. A typical structure looks like:
 
 ```
 <project_name>/
@@ -136,6 +143,38 @@ Adapt this structure based on what the notebook actually contains:
 - Generate a `.gitignore` appropriate for a Python project. It **must** include `.env`, `config/secrets.*`, `*.key`, and `*.pem` in addition to standard Python entries.
 - **Credential handling**: Any hardcoded secrets detected in the notebook must be replaced with `os.environ.get("VAR_NAME")` calls in the generated code. Add the corresponding variable names (with placeholder values) to `.env.example` and instruct the user to create a real `.env` file that is never committed.
 - Add basic test stubs in the `tests/` directory for key functions.
+
+---
+
+## Step 6: Conversion Report
+
+After scaffolding completes, present a single consolidated report to the user. This is the user's record of what the agent did and what still needs human attention — do not bury these items in conversational text spread across the session.
+
+### Skipped or partial conversions
+- Cells that errored in the original notebook (cell index + brief reason).
+- Cells whose intent was ambiguous and required a guess (cell index + decision made).
+- Shell commands found in cells that were NOT included automatically (waiting on user approval — list each command verbatim).
+
+### Credentials
+- Auto-replaced with `os.environ.get(...)` — list each variable name and originating cell index.
+- Detected but NOT auto-replaced — list location and reason (e.g., string concatenation, dynamic key derivation, ambiguous match). The user must review these manually.
+
+### Patterns worth refactoring (preserved as-is per fidelity rules)
+- Repeated logic, hardcoded paths, inefficient loops, suspected dead code, or anything else worth a second look. Note where the code lives and why it caught your attention. Do not rewrite it.
+
+### Unresolved imports / missing data
+- Imports that don't map to a known PyPI package or local module.
+- File paths referenced in the notebook that don't exist on disk.
+
+### Next steps for the user
+A concrete checklist:
+1. Copy `.env.example` to `.env` and fill in real values.
+2. Confirm `.env` is gitignored before the first commit.
+3. Run `pip install -r requirements.txt`.
+4. Run `python main.py` (or the appropriate entry point).
+5. Review every item flagged in the sections above.
+
+**Empty sections must be written as `*(none)*` rather than omitted** — an empty section is evidence the agent checked, not evidence it forgot.
 
 ---
 

@@ -48,7 +48,7 @@ Convert my notebook analysis.ipynb into a proper Python project.
 
 Or let Claude pick it up automatically — if you drop a `.ipynb` file into the conversation, Claude will offer to use the agent.
 
-The agent will guide you through each step and ask for confirmation before scaffolding.
+The agent will guide you through each step and ask for confirmation before scaffolding. If your target directory already contains common scaffold files (`src/`, `tests/`, `requirements.txt`, etc.), the agent lists every collision and asks whether to overwrite in place, write into a `<project_name>_v2/` subfolder, or abort. The safe default is the `_v2/` subfolder — nothing existing gets clobbered without your say-so.
 
 ---
 
@@ -120,6 +120,20 @@ The agent preserves your original notebook code exactly as written. Unless you e
 - Replacing hardcoded credentials per the security policy below
 
 If the agent notices a pattern worth flagging (e.g., repeated logic that could be a helper), it will mention it — but will not rewrite it unless you ask.
+
+---
+
+## Conversion Report
+
+When scaffolding finishes, the agent presents a single consolidated report so you don't have to scroll back through the conversation looking for warnings. It covers:
+
+- **Skipped or partial conversions** — cells that errored, ambiguous decisions the agent had to make, and shell commands awaiting your approval
+- **Credentials** — variables auto-replaced with `os.environ.get(...)` and any the agent flagged for manual review
+- **Patterns worth refactoring** — preserved as-is per the fidelity rules, but noted so you can revisit them
+- **Unresolved imports / missing data** — packages that don't map to a known PyPI entry, and file paths referenced in the notebook that don't exist on disk
+- **Next-steps checklist** — concrete commands to run before using the project
+
+Empty sections are written as `*(none)*` rather than omitted, so you can tell the agent checked rather than forgot.
 
 ---
 
