@@ -16,6 +16,7 @@ A curated collection of drop-in **Agents**, **Skills**, **Plugins**, and **Hooks
 
 ```
 Agents/     # .claude/agents/<name>.md — subagent definitions
+Commands/   # Slash command definitions — .md files invoked via /command-name
 Hooks/      # Shell scripts registered in settings.json (PreToolUse / PostToolUse)
 Plugins/    # .claude-plugin/plugin.json manifest + skills/ subfolder
 Skills/     # SKILL.md + optional references/ directory
@@ -44,7 +45,7 @@ Plain shell/JS scripts. Registered in `settings.json` under `hooks.PreToolUse` o
 1. Create the folder under the matching top-level directory.
 2. Follow the anatomy for that component type above.
 3. Run `/readme-generator` to produce the `README.md`.
-4. For skills, run the package script if a `.skill` bundle is needed — but do **not** commit the `.skill` file to the repo; the source folder is the deliverable.
+4. Do **not** commit `.skill` bundle files to the repo — the source folder is the deliverable.
 
 ## Key Reference Files
 
