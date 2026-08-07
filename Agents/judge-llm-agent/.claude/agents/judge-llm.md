@@ -32,22 +32,21 @@ Ask the user which SDK/provider they want the judge to use:
 Based on their Step 1 answer, ask which specific model they want to use as the judge. Present the most common options and always offer "Other: ____":
 
 **Anthropic:**
-- `claude-opus-4-6`
-- `claude-sonnet-4-6`
-- `claude-haiku-4-5-20251001`
+- `claude-opus-5`
+- `claude-sonnet-5`
+- `claude-haiku-4-5`
 - Other: ____
 
 **OpenAI:**
 - `gpt-4o`
-- `gpt-4`
-- `gpt-3.5-turbo`
 - Other: ____
 
 **Gemini:**
 - `gemini-2.0-flash`
-- `gemini-1.5-pro`
-- `gemini-1.5-flash`
 - Other: ____
+
+Model names go stale. Treat every list above as an example, always accept a free-form
+model string, and never reject a name just because it isn't listed.
 
 **Custom / OpenAI-compatible:**
 - Ask for the `base_url` (e.g., `http://localhost:11434/v1`) and model name
@@ -63,7 +62,7 @@ Ask the user what format their data will be in:
 2. **DataFrame / CSV batch** — two DataFrames (outputs + reference) joined on an ID column, best for bulk evaluation where context and responses are already in one place
 3. **Input + Response CSVs** — two separate files: one with the original prompts (`id`, `text`), and one with the LLM responses (`id`, `col1`, `col2`, ...); the judge joins them on `id` and scores each response column independently against the original input text
 
-### Step 4: DataFrame Details (if DataFrame chosen)
+### Step 4a: DataFrame Details (only if option 2, DataFrame / CSV batch, was chosen)
 
 **Ask the following, then wait for the user's reply before continuing to Step 5.**
 
@@ -74,7 +73,7 @@ Ask for:
 - **Batch size** (default: 10)
 - **Async concurrency** — whether to enable asyncio for faster processing (yes/no)
 
-### Step 4: Input + Response CSV Details (if Option C chosen)
+### Step 4b: Input + Response CSV Details (only if option 3, Input + Response CSVs, was chosen)
 
 **Ask the following, then wait for the user's reply before continuing to Step 5.**
 
@@ -439,6 +438,7 @@ Generate only the dependencies needed for the chosen provider:
 anthropic>=0.40.0
 pandas>=2.0.0
 tqdm>=4.0.0
+python-dotenv>=1.0.0
 ```
 
 **OpenAI / Custom / Azure:**
@@ -446,6 +446,7 @@ tqdm>=4.0.0
 openai>=1.0.0
 pandas>=2.0.0
 tqdm>=4.0.0
+python-dotenv>=1.0.0
 ```
 
 **Gemini:**
@@ -453,7 +454,11 @@ tqdm>=4.0.0
 google-generativeai>=0.8.0
 pandas>=2.0.0
 tqdm>=4.0.0
+python-dotenv>=1.0.0
 ```
+
+`python-dotenv` is what makes the generated `.env` actually load — without it `os.getenv()`
+returns `None` for a key the user correctly placed in `.env`.
 
 Note: If async mode is requested, no extra packages are needed (asyncio is in the stdlib).
 
@@ -489,14 +494,19 @@ Show the user:
 
 Then show **exactly one** usage snippet matched to the user's chosen provider and input format:
 
+Every snippet loads `.env` first — that is what turns the generated `.env.example`
+into a working setup instead of a file nothing reads.
+
 **Anthropic + Single evaluation:**
 ```python
 import os
+from dotenv import load_dotenv
 from anthropic import Anthropic
 from judge_llm import JudgeLLM
 
+load_dotenv()
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-judge = JudgeLLM(client=client, model="claude-sonnet-4-6")
+judge = JudgeLLM(client=client, model="claude-sonnet-5")
 
 # Plain string
 result = judge.judge("The Eiffel Tower is in Berlin.")
@@ -510,9 +520,11 @@ print(result)
 **OpenAI + Single evaluation:**
 ```python
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
 from judge_llm import JudgeLLM
 
+load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 judge = JudgeLLM(client=client, model="gpt-4o")
 
@@ -523,9 +535,11 @@ print(result)
 **Gemini + Single evaluation:**
 ```python
 import os
+from dotenv import load_dotenv
 import google.generativeai as genai
 from judge_llm import JudgeLLM
 
+load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 client = genai.GenerativeModel("gemini-2.0-flash")
 judge = JudgeLLM(client=client, model="gemini-2.0-flash")

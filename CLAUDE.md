@@ -17,7 +17,6 @@ A curated collection of drop-in **Agents**, **Skills**, **Plugins**, and **Hooks
 ```
 Agents/     # .claude/agents/<name>.md — subagent definitions
 Commands/   # Slash command definitions — .md files invoked via /command-name
-Hooks/      # Shell scripts registered in settings.json (PreToolUse / PostToolUse)
 Plugins/    # .claude-plugin/plugin.json manifest + skills/ subfolder
 Skills/     # SKILL.md + optional references/ directory
 ```
@@ -35,10 +34,9 @@ Install by copying the folder to `~/.claude/skills/` (user), `.claude/skills/` (
 
 ### Plugins (`Plugins/<name>/`)
 Manifest at `.claude-plugin/plugin.json` — lists `skills` array pointing to `./skills/<skill-name>`.
-Install via `claude plugin install ./<plugin-name>`.
-
-### Hooks (`Hooks/<name>/`)
-Plain shell/JS scripts. Registered in `settings.json` under `hooks.PreToolUse` or `hooks.PostToolUse` with a `matcher` pattern and `command`.
+Load for one session with `claude --plugin-dir ./<plugin-name>`. `claude plugin install` only
+resolves names from a marketplace, never a folder path — a persistent install needs
+`claude plugin marketplace add` first. Skills are invoked as `/<plugin-name>:<skill-name>`.
 
 ## Adding a New Component
 

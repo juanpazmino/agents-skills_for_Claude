@@ -6,7 +6,7 @@
 |---|---|---|---|
 | OpenAI | `from openai import OpenAI` | `.beta.chat.completions.parse(response_format=Model)` | `.choices[0].message.parsed` |
 | Azure OpenAI | `from openai import AzureOpenAI` | Same as OpenAI; requires `api_version="2024-08-01-preview"` or later | `.choices[0].message.parsed` |
-| Anthropic (raw) | `import anthropic` | `.messages.create()` + forced tool_choice + `model_json_schema()` | `Model.model_validate(tool_use.input)` |
+| Anthropic (raw) | `import anthropic` | `.messages.parse(output_format=Model)` | `.parsed_output` |
 | Anthropic (instructor) | `import instructor` | `.messages.create(response_model=Model)` | direct instance |
 | LangChain | `from langchain_openai import ChatOpenAI` | `.with_structured_output(Model).invoke(messages)` | direct instance |
 
@@ -64,7 +64,11 @@ result: MyModel = completion.choices[0].message.parsed
 
 ---
 
-## Anthropic (raw SDK — tool forcing)
+## Anthropic (raw SDK)
+
+Structured outputs are native — pass the Pydantic model as `output_format` and read
+`.parsed_output`. Forcing a tool call with `tool_choice` to extract JSON is the old
+workaround; do not generate it for new code.
 
 ```python
 import anthropic
@@ -72,24 +76,31 @@ from pydantic import BaseModel
 
 client = anthropic.Anthropic()
 
-schema = MyModel.model_json_schema()  # Pydantic v2
-
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    tools=[
-        {
-            "name": "structured_output",
-            "description": "Return the structured result.",
-            "input_schema": schema,
-        }
-    ],
-    tool_choice={"type": "tool", "name": "structured_output"},
+response = client.messages.parse(
+    model="claude-opus-5",
+    max_tokens=16000,
     messages=[{"role": "user", "content": user_prompt}],
+    output_format=MyModel,
 )
 
-tool_use = next(b for b in response.content if b.type == "tool_use")
-result: MyModel = MyModel.model_validate(tool_use.input)
+result: MyModel = response.parsed_output
+```
+
+If you need the raw JSON schema instead of a Pydantic model, pass it through
+`output_config` on the normal `create()` call:
+
+```python
+response = client.messages.create(
+    model="claude-opus-5",
+    max_tokens=16000,
+    messages=[{"role": "user", "content": user_prompt}],
+    output_config={
+        "format": {
+            "type": "json_schema",
+            "schema": MyModel.model_json_schema(),  # must set additionalProperties: false
+        }
+    },
+)
 ```
 
 ---
@@ -104,8 +115,8 @@ from pydantic import BaseModel
 client = instructor.from_anthropic(anthropic.Anthropic())
 
 result: MyModel = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
+    model="claude-opus-5",
+    max_tokens=16000,
     messages=[{"role": "user", "content": user_prompt}],
     response_model=MyModel,
 )

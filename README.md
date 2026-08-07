@@ -10,13 +10,14 @@ A curated collection of reusable **agents**, **skills**, **plugins**, and **hook
 ├── Agents/
 │   ├── judge-llm-agent/               # Generate a Python Judge LLM to evaluate model outputs
 │   └── notebook-to-project-agent/     # Convert Jupyter notebooks into structured Python projects
-├── Hooks/
-│   ├── read-hook-starter/              # PreToolUse hook that blocks reads of sensitive files
-│   └── post-tool-claude-md-updater/   # PostToolUse hook that logs file changes to CLAUDE.md
+├── Commands/
+│   ├── commit-push.md                 # Stage-aware commit and push with safety checks
+│   └── update_md_file.md              # Audit and update a project's CLAUDE.md
 ├── Plugins/
-│   └── formatting_py_files/            # Clean and reformat Python files exported from notebooks
+│   └── formatting_py_files/           # Clean and reformat Python files exported from notebooks
 └── Skills/
-    └── readme-generator/               # Generate consistent READMEs for Claude Code components
+    ├── readme-generator/              # Generate consistent READMEs for Claude Code components
+    └── structured-outputs/            # Refactor JSON-string prompting into Pydantic structured outputs
 ```
 
 ---
@@ -30,18 +31,6 @@ A Claude Code agent that generates a production-ready Python Judge LLM — a scr
 ### [notebook-to-project-agent](Agents/notebook-to-project-agent/)
 
 A Claude Code agent that converts Jupyter Notebooks (`.ipynb`) into clean, well-structured Python projects. Handles the full pipeline: notebook detection, `.py` conversion, code analysis, project scaffolding, and test stub generation — all in one guided session.
-
----
-
-## Hooks
-
-### [read-hook-starter](Hooks/read-hook-starter/)
-
-A drop-in `PreToolUse` hook that prevents Claude Code from reading sensitive files (`.env`, SSH keys, certificates, AWS credentials). Registers a guard on the Read, Grep, and Bash tools and exits with code 2 (blocking the action) whenever the target path matches a sensitive pattern.
-
-### [post-tool-claude-md-updater](Hooks/post-tool-claude-md-updater/)
-
-A `PostToolUse` hook that automatically logs every file change Claude makes into a `## Recent Changes` section in `CLAUDE.md`. Uses Claude Haiku to generate a one-sentence summary of each Write or Edit action.
 
 ---
 
@@ -59,13 +48,29 @@ A Claude Code skill packaged as a plugin. Reformats a `.py` file exported from a
 
 A Claude Code skill that generates a `README.md` for any component in this repo (Plugin, Hook, Agent, or Skill). Follows a consistent style: GitHub-visitor perspective, folder tree diagram, three-scope installation table, no hallucinated URLs, imperative tone.
 
+### [structured-outputs](Skills/structured-outputs/)
+
+A Claude Code skill that refactors fragile JSON-string prompting (`json.loads()`, "Reply ONLY with valid JSON") into provider-native structured outputs with Pydantic models. Proposes the model set for approval before rewriting any code.
+
+---
+
+## Commands
+
+### [commit-push](Commands/commit-push.md)
+
+A Haiku-powered slash command for routine commits. Scans for secrets before staging, warns on protected branches, and asks for explicit approval before both the commit and the push. Never amends, never force-pushes, never adds a `Co-Authored-By` trailer.
+
+### [update_md_file](Commands/update_md_file.md)
+
+A slash command that audits a project's `CLAUDE.md` — checks every path and command it references still exists, classifies each section as signal or noise, and applies only what you approve. Never touches the global `~/.claude/CLAUDE.md`.
+
 ---
 
 ## Contributing
 
 To add a new component:
 
-1. Create a folder under the appropriate category (`Agents/`, `Hooks/`, `Plugins/`, or `Skills/`).
+1. Create a folder under the appropriate category (`Agents/`, `Commands/`, `Plugins/`, or `Skills/`).
 2. Include a `README.md` explaining installation, usage, and how it works.
 3. Keep the component self-contained — no cross-dependencies between entries.
 

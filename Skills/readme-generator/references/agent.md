@@ -17,20 +17,23 @@ Use this template when the component type is an Agent.
 
 Download or clone this folder, then register it in Claude Code under your preferred scope.
 
+The agent is the `.md` file itself. It must sit directly in an `agents/` directory —
+a nested folder is not discovered.
+
 ### Project (shared with team)
 
 \```bash
 mkdir -p .claude/agents
-cp -r [agent-name] .claude/agents/
+cp [agent-folder]/.claude/agents/[agent-name].md .claude/agents/
 \```
 
-Commit `.claude/agents/[agent-name]/` to share it with the team.
+Commit `.claude/agents/[agent-name].md` to share it with the team.
 
 ### Local (you, this project only)
 
 \```bash
 mkdir -p .claude/agents
-cp -r [agent-name] .claude/agents/
+cp [agent-folder]/.claude/agents/[agent-name].md .claude/agents/
 \```
 
 Add to `.gitignore`:
@@ -41,7 +44,8 @@ Add to `.gitignore`:
 ### Global (you, all projects)
 
 \```bash
-cp -r [agent-name] ~/.claude/agents/
+mkdir -p ~/.claude/agents
+cp [agent-folder]/.claude/agents/[agent-name].md ~/.claude/agents/
 \```
 
 ---
@@ -92,6 +96,7 @@ Or invoke explicitly:
 ## Rules
 
 - Installation always shows all three scopes: Project, Local, Global — in that order.
+- **Copy the agent's `.md` file, never its folder.** Claude Code only discovers agents sitting directly in `agents/`; `cp -r <folder> .claude/agents/` creates a nested directory the agent is never loaded from.
 - The "What the agent generates" tree must reflect the actual output structure; read the agent's AGENT.md or source files to determine this accurately.
 - The "How to invoke" examples must use natural language the user would actually say, not technical commands.
 - Only include a Security section if the agent performs file operations, shell execution, or network calls.

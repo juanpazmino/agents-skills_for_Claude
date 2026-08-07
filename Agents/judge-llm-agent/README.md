@@ -68,9 +68,13 @@ your-project/
 
 An importable module containing the `JudgeLLM` class:
 
+You create and configure the provider client yourself, then pass it in. That makes it
+trivial to judge with a local model while a cloud model does the generating, or to swap
+providers without touching any evaluation logic.
+
 | Method | Description |
 |---|---|
-| `JudgeLLM()` | Initializes the provider client; raises `RuntimeError` immediately if the API key env var is not set |
+| `JudgeLLM(client, model)` | Takes an already-configured provider client and a model name; the module never creates a client or reads an API key itself |
 | `.judge(input_data)` | Accepts `dict`, `str`, or any value; returns parsed JSON dict or raw string on JSON parse failure |
 | `.judge_dataframe(outputs_df, reference_df, ...)` | Generic N-column batch judge; returns the merged DataFrame with a `judge_result` column |
 | `.judge_async(input_data, semaphore)` | Async version of `.judge()` with concurrency control (generated only if requested) |
@@ -87,7 +91,7 @@ Only the dependencies needed for your chosen provider:
 | Claude (Anthropic) | `anthropic>=0.40.0` |
 | OpenAI / Custom / Azure | `openai>=1.0.0` |
 | Gemini | `google-generativeai>=0.8.0` |
-| All modes | `pandas>=2.0.0`, `tqdm>=4.0.0` |
+| All modes | `pandas>=2.0.0`, `tqdm>=4.0.0`, `python-dotenv>=1.0.0` |
 
 ### `.env.example`
 
@@ -102,12 +106,12 @@ The variable name matches whatever you provide during setup. Copy to `.env`, fil
 
 ## Workflow
 
-The agent completes five steps in sequence, waiting for your answer at each before moving on:
+The agent works through these steps in sequence, waiting for your answer at each before moving on:
 
-1. **Provider & model** — Claude, OpenAI, Gemini, or any OpenAI-compatible API (Ollama, Azure, LM Studio)
-2. **Input format** — single evaluation, DataFrame/CSV batch, or Input + Response CSVs
-3. **DataFrame details** *(if DataFrame chosen)* — join column, output columns, reference columns, batch size, async concurrency
-4. **Input + Response CSV details** *(if CSV mode chosen)* — ID column, input text column, response columns, num_batches, global eval type, async concurrency
+1. **Provider** — Claude, OpenAI, Gemini, or any OpenAI-compatible API (Ollama, Azure, LM Studio)
+2. **Model** — a suggested list per provider, or any model name you type
+3. **Input format** — single evaluation, DataFrame/CSV batch, or Input + Response CSVs
+4. **Format details** *(only the one matching your choice in step 3)* — join/ID columns, which columns to judge, batching, async concurrency
 5. **Evaluation criteria** — defaults: accuracy, helpfulness, clarity, safety; fully customizable
 6. **Generate files** — writes `judge_llm.py`, `requirements.txt`, and `.env.example`
 
@@ -119,10 +123,15 @@ After generation, import and use the class directly — no script execution requ
 
 **DataFrame / CSV:**
 ```python
+import os
+from dotenv import load_dotenv
+from anthropic import Anthropic
 from judge_llm import JudgeLLM
-import pandas as pd
 
-judge = JudgeLLM()
+load_dotenv()
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+judge = JudgeLLM(client=client, model="claude-sonnet-5")
+
 result = judge.judge_dataframe(
     outputs_df, reference_df,
     join_col="id",
@@ -134,9 +143,10 @@ result.to_csv("judged_outputs.csv", index=False)
 
 **Input + Response CSVs:**
 ```python
-from judge_llm import JudgeLLM
 import pandas as pd
+from judge_llm import JudgeLLM
 
+# client created as above
 judge = JudgeLLM(client=client, model="<chosen-model>")
 
 input_df = pd.read_csv("inputs.csv")       # columns: id, text
@@ -160,7 +170,8 @@ result.to_csv("judged_responses.csv", index=False)
 ```python
 from judge_llm import JudgeLLM
 
-judge = JudgeLLM()
+# client created as above
+judge = JudgeLLM(client=client, model="<chosen-model>")
 result = judge.judge({
     "question": "What is the capital of France?",
     "response": "Berlin",
@@ -187,8 +198,9 @@ print(result)
 
 ## Security
 
-- Never ask for your actual API key — only the environment variable name
-- Generated code uses `os.getenv("VAR_NAME")` and raises `RuntimeError` immediately if the variable is unset
+- Never asks for your actual API key — only the environment variable name
+- `judge_llm.py` never reads a key or builds a client; you construct the client and pass it in, so the key stays in your code, not the module
 - `.env.example` uses placeholder values only; your real `.env` should be gitignored
+- Never `export API_KEY=...` in your shell — it lands in your shell history in plaintext. Use the `.env` file
 - Custom remote endpoints are warned to use `https://` — plain `http://` to a non-localhost host exposes the key in transit
 - CSV rows, prompts, and dictionary values are sent verbatim to the provider's API; review your provider's data retention policy before using with PII or confidential data

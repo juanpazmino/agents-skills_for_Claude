@@ -36,7 +36,22 @@ git clone [URL-only-if-user-provided]
 cd [repo-name]/Plugins
 \```
 
-**2. Install the plugin**
+**2. Try it without installing** (one session only)
+
+\```bash
+claude --plugin-dir ./[plugin-name]
+\```
+
+**3. Install it persistently**
+
+`claude plugin install` reads from a marketplace, not a folder path — so register the repo
+as a marketplace first, then install by name. Requires a `.claude-plugin/marketplace.json`
+at the repo root.
+
+\```bash
+claude plugin marketplace add [repo-path-or-URL]
+claude plugin install [plugin-name]@[marketplace-name]
+\```
 
 Choose the scope that fits your use case:
 
@@ -47,20 +62,8 @@ Choose the scope that fits your use case:
 | `local` | You, this project only | `.claude/settings.local.json` (gitignored) |
 
 \```bash
-# Global — available in all your projects
-claude plugin install ./[plugin-name]
-
-# Project — shared with the team (commit .claude/settings.json)
-claude plugin install ./[plugin-name] --scope project
-
-# Local — only you, only this project (gitignored)
-claude plugin install ./[plugin-name] --scope local
-\```
-
-**3. Try it without installing** (one session only)
-
-\```bash
-claude --plugin-dir ./[plugin-name]
+claude plugin install [plugin-name]@[marketplace-name] --scope project
+claude plugin install [plugin-name]@[marketplace-name] --scope local
 \```
 
 ---
@@ -69,7 +72,7 @@ claude --plugin-dir ./[plugin-name]
 
 Inside any Claude Code session run:
 \```
-/[plugin-name]
+/[plugin-name]:[skill-name]
 \```
 
 ---
@@ -93,7 +96,9 @@ Use this skill when you need to:
 
 ## Rules
 
-- If the user did NOT provide a GitHub URL, omit the "Clone the repository" step entirely and start at "Install the plugin".
+- If the user did NOT provide a GitHub URL, omit the "Clone the repository" step entirely and start at "Try it without installing".
 - The folder tree must reflect the actual files in the component — glob them first.
 - plugin.json must be shown at `.claude-plugin/plugin.json`, not at the root.
 - The skill folder inside `skills/` must match the actual folder name on disk.
+- **Never write `claude plugin install ./folder`** — install resolves names from a marketplace, not paths. That command always fails.
+- The invocation is `/[plugin-name]:[skill-name]`, not `/[plugin-name]`. Both halves are required, even when they are the same word.

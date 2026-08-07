@@ -17,21 +17,28 @@ Adapt the commands to the component type (plugin install vs cp).
 
 ## Plugin install commands
 
-```bash
-# Global — available in all your projects
-claude plugin install ./[plugin-folder-name]
+**`claude plugin install` only reads from a marketplace — it cannot take a folder path.**
+`claude plugin install ./my-plugin` fails with "not found in any configured marketplace".
+There are two real paths:
 
-# Project — shared with the team (commit .claude/settings.json)
-claude plugin install ./[plugin-folder-name] --scope project
-
-# Local — only you, only this project (gitignored)
-claude plugin install ./[plugin-folder-name] --scope local
-```
-
-Try without installing (one session only):
+Use it for one session, straight from the folder — no install, no marketplace:
 ```bash
 claude --plugin-dir ./[plugin-folder-name]
 ```
+
+Install it persistently — register the repo as a marketplace first, then install by name.
+This needs a `.claude-plugin/marketplace.json` at the repo root listing the plugin:
+```bash
+claude plugin marketplace add [repo-path-or-URL]
+claude plugin install [plugin-name]@[marketplace-name]
+
+# --scope picks who it applies to (default: user)
+claude plugin install [plugin-name]@[marketplace-name] --scope project
+claude plugin install [plugin-name]@[marketplace-name] --scope local
+```
+
+The scope table above applies to the marketplace flow. `--plugin-dir` is session-only and
+has no scope.
 
 ---
 
